@@ -1,4 +1,4 @@
-# SDN firewall as N-Watch's core
+# SDN firewall as core
 
 # One step toward self-adaptive firewalls, capable of automatically
 # setting the filtering rules.
@@ -6,16 +6,22 @@
 # statically configured rules. Equipped with a powerful IDS or other traffic
 # analyzer, it can be upgraded to a stateful packet filtering with capability
 # of inspection and control, pretty close to an IPS.
-# In N-Watch, it integrates a smart traffic analyzer, then turns workflow to 
-# a loop as below:
+# In this project, it integrates a smart traffic analyzer, then turns its flow
+# to a loop as below:
 #   1. As an app of controller, recevie packet P through SBI.
-#   2. Request the switch to mirror P to analyzer through SBI.
-#   3. Receive a label L for P from analyzer as a response.
-#   3. Decide action A(alert/drop/redirect) for P according L and configurations.
-#   4. Read rules from configure file and modify them in memory according A.
-#   5. Decide the output port for P according modified rules.
-#   6. Send the flow entry and(or) the constructed output packet to switch.
-#   7. Write modified rules back to file.
+#   2. Send an instruction to switch for each filtering rules.
+#       - accept/redirect. Update or make an new flow entry, in which the
+#         out port is specified as usual or by configuration. Always add an
+#         extra out port to analyzer.
+#       - drop. Clear related entry.
+#   3. Decide the out port for P according filtering rules, with an extra
+#      one enabling switch to mirror itself to analyzer as well.
+#   4. Send the constructed output packet to switch through SBI.
+# Moreover, it rectifies filtering rules whenever altered by analyzer. It
+# receives from analyzer a label L for a certain packet as a deferred response,
+# decides an action A(alert/drop/redirect) according L and pre-configuration,
+# then modifies filtering rules according A, which will take effect from the
+# moment when the next packet-in event arrived.
 
 import sys
 import smart_ids
@@ -47,7 +53,7 @@ class BasicFirewall(app_manager.RyuApp):
         self.name = "firewall"
         self.mac_to_port = {}
         # self.snort_port = 3
-        self.redirect_port = 4      # TODO: consider to be configurable!
+        self.redirect_port = 4      # TODO: consider being configurable!
         self.ids_port = 5
         self.alerter = kwargs['alerter']
         # self.alerter.start()          # start() has been implicitly called here
@@ -78,6 +84,7 @@ class BasicFirewall(app_manager.RyuApp):
             inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
                                                  actions)]
         else:
+            # TODO: may not support "any" if simply clear by match
             inst = [parser.OFPInstructionActions(ofproto.OFPIT_CLEAR_ACTIONS, [])]
         
         kwargs = dict(datapath=datapath, priority=priority, match=match,
@@ -157,8 +164,8 @@ class BasicFirewall(app_manager.RyuApp):
                 self.logger.info("Fetch rule %s: %s:%s --> %s:%s %s",
                                  rid, s_ip, s_port, d_ip, d_port, act)
                 
-                # add flow entry for accept and redirect rule
-                if act != "drop":
+                # add flow entry for all rules (even drop)
+                if act:
                     # forward rule
                     kwargs1 = dict(eth_type=ether_types.ETH_TYPE_IP,
                                    ip_proto=in_proto.IPPROTO_TCP)
@@ -194,7 +201,7 @@ class BasicFirewall(app_manager.RyuApp):
                     actions = [parser.OFPActionOutput(out_port),
                                parser.OFPActionOutput(self.ids_port)]
                     if act == "drop":
-                        actions = []        # or consider forward to ids only
+                        actions = []        # TODO: consider forwarding to ids only
                     self.add_flow(datapath, 1, match1, actions)
                     self.add_flow(datapath, 1, match2, actions)
 
@@ -242,6 +249,10 @@ class BasicFirewall(app_manager.RyuApp):
                 if r['label'] == msg.label:
                     action = r['action']
                     break
+        
+        # TODO: consider clearing related or all flow entries immediately
+        # The sooner the next packet-in arrives, the earlier the new rule
+        # takes effect. For the present, idle_timeout holds the interval.
 
         if action == "alert":
             self._handle_alert(msg)
