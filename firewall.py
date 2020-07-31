@@ -17,7 +17,7 @@
 #   3. Decide the out port for P according filtering rules, with an extra
 #      one enabling switch to mirror itself to analyzer as well.
 #   4. Send the constructed output packet to switch through SBI.
-# Moreover, it rectifies filtering rules whenever altered by analyzer. It
+# Meanwhile, it rectifies filtering rules whenever altered by analyzer. It
 # receives from analyzer a label L for a certain packet as a deferred response,
 # decides an action A(alert/drop/redirect) according L and pre-configuration,
 # then modifies filtering rules according A, which will take effect from the
@@ -202,8 +202,12 @@ class BasicFirewall(app_manager.RyuApp):
                                parser.OFPActionOutput(self.ids_port)]
                     if act == "drop":
                         actions = []        # TODO: consider forwarding to ids only
-                    self.add_flow(datapath, 1, match1, actions)
-                    self.add_flow(datapath, 1, match2, actions)
+                    
+                    priority = ["accept", "redirect", "drop"].index(act) + 1
+                    print("=", act, priority)
+
+                    self.add_flow(datapath, priority, match1, actions)
+                    self.add_flow(datapath, priority, match2, actions)
 
                 # check if current packet matches
                 if not matched:
