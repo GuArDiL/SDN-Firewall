@@ -11,13 +11,22 @@ def get_ip(iface):
 
 def dispatch():
     pkts = rdpcap(pcap_file)
-    n = 1
+    n = 10
     for i in range(n):
         pkt = pkts[i]
-        pkt[Ether].src = "00:00:00:00:00:02"
-        pkt[Ether].dst = "00:00:00:00:00:01"
-        pkt[IP].src = "10.0.0.2"
-        pkt[IP].dst = "10.0.0.1"
+        
+        if pkt[TCP].dport != 80:
+            continue
+         
+        src = "00:00:00:00:00:02"
+        dst = "00:00:00:00:00:01"
+        s_ip = "10.0.0.2"
+        d_ip = "10.0.0.1"
+        
+        pkt[Ether].src = src
+        pkt[Ether].dst = dst
+        pkt[IP].src = s_ip
+        pkt[IP].dst = d_ip
 
         # reset to recalculate
         pkt[IP].len = None

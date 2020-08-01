@@ -23,7 +23,6 @@
 # then modifies filtering rules according A, which will take effect from the
 # moment when the next packet-in event arrived.
 
-import sys
 import smart_ids
 import web_admin
 from utils import *
@@ -203,9 +202,8 @@ class BasicFirewall(app_manager.RyuApp):
                     if act == "drop":
                         actions = []        # TODO: consider forwarding to ids only
                     
-                    priority = ["accept", "redirect", "drop"].index(act) + 1
-                    print("=", act, priority)
-
+                    # priority = ["accept", "redirect", "drop"].index(act) + 1
+                    priority = 1
                     self.add_flow(datapath, priority, match1, actions)
                     self.add_flow(datapath, priority, match2, actions)
 

@@ -5,6 +5,7 @@ from ryu.lib import hub
 import os
 import struct
 import csv
+import datetime
 
 firewall_rule_file = "./rules/firewall.rule"
 ids_rule_file = "./rules/ids.rule"
@@ -98,17 +99,18 @@ class PacketLogger(object):
     @classmethod
     def record(cls, action, msg):
         file = log_file
-        file_header = ["action", "label",
-                       "s_ip", "s_port", "d_ip", "d_port", "hexdata"]
+        file_header = ["time", "action", "label",
+                       "s_ip", "s_port", "d_ip", "d_port", "payload"]
         
         with open(file, "a") as f:
             writer = csv.DictWriter(f, file_header)
-            hexdata = " ".join(["%02x" % ord(ch) for ch in msg.data])
-            new_record = dict(action = action,
+            # hexdata = " ".join(["%02x" % ord(ch) for ch in msg.data.strip()])
+            new_record = dict(time = datetime.datetime.now().strftime("%H:%M:%S"),
+                              action = action,
                               label = msg.label,
                               s_ip = msg.s_ip,
                               s_port = msg.s_port,
                               d_ip = msg.d_ip,
                               d_port = msg.d_port,
-                              hexdata = msg.data)
+                              payload = msg.data.replace("\r\n", "\\r\\n"))
             writer.writerow(new_record)

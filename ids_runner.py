@@ -12,6 +12,7 @@ def fake_ids(pkt):
     data = "FAKE"
     # pkt can be used as dictionary-like stuff already
     # print(time, data, pkt)
+    random.seed(0)
     return random.choice(["DOS", "R2L", "U2R"])
 
 def send_alert(alert):
@@ -29,13 +30,13 @@ def analyze_packet(pkt):
     
     data = "NOPAYLOAD"
     if 'Raw' in pkt:
-        data = pkt['Raw'].load.split(r"\r\n")
-    five_bytes = " ".join(["%02x" % ord(ch) for ch in data][:10])
+        data = pkt['Raw'].load
+    ten_bytes = " ".join(["%02x" % ord(ch) for ch in data][:10])
 
     # alert message <label, s_ip, s_port, d_ip, d_port, data>
     alert = DELIMITER.join([label, s_ip, str(s_port), d_ip, str(d_port), data])
     send_alert(alert)
-    print("pkt [%s:%d --> %s:%d][%s]has been analyzed." % (s_ip, s_port, d_ip, d_port, five_bytes))
+    print("pkt [%s:%d --> %s:%d][%s] has been analyzed." % (s_ip, s_port, d_ip, d_port, ten_bytes))
 
 if __name__ == '__main__':
     print("Start sniffing...")
