@@ -1,3 +1,5 @@
+from smart_ids import IDS_Engine
+
 from scapy.all import *
 from utils import SOCKFILE, DELIMITER
 
@@ -6,6 +8,7 @@ import random
 
 iface = "s1-eth5"
 
+'''
 def fake_ids(pkt):
     time = pkt.time     # or check pkt[TCP].options
     #data = pkt.load
@@ -14,6 +17,7 @@ def fake_ids(pkt):
     # print(time, data, pkt)
     random.seed(0)
     return random.choice(["DOS", "R2L", "U2R"])
+'''
 
 def send_alert(alert):
     print("send alert:", alert)
@@ -22,7 +26,6 @@ def send_alert(alert):
     sock.send(alert)
 
 def analyze_packet(pkt):
-    label = fake_ids(pkt)
     s_ip = pkt[IP].src
     s_port = pkt[TCP].sport
     d_ip = pkt[IP].dst
@@ -31,7 +34,12 @@ def analyze_packet(pkt):
     data = "NOPAYLOAD"
     if 'Raw' in pkt:
         data = pkt['Raw'].load
-    ten_bytes = " ".join(["%02x" % ord(ch) for ch in data][:10])
+    try:
+        ten_bytes = " ".join(["%02x" % ord(ch) for ch in data][:10])
+    except:
+        ten_byte = ""
+    
+    label = IDS_Engine.IDS(pkt, pkt.time)   # call IDS
 
     # alert message <label, s_ip, s_port, d_ip, d_port, data>
     alert = DELIMITER.join([label, s_ip, str(s_port), d_ip, str(d_port), data])
