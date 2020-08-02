@@ -1,0 +1,3 @@
+[submodule "smart_ids"]
+	path = smart_ids
+	url = https://github.com/ninja0117/smart_ids

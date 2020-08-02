@@ -106,7 +106,7 @@ class PacketLogger(object):
             writer = csv.DictWriter(f, file_header)
             # hexdata = " ".join(["%02x" % ord(ch) for ch in msg.data.strip()])
             new_record = dict(time = datetime.datetime.now().strftime("%H:%M:%S"),
-                              action = action,
+                              action = action if action else "NOACTION",
                               label = msg.label,
                               s_ip = msg.s_ip,
                               s_port = msg.s_port,

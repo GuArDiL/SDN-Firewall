@@ -23,8 +23,6 @@
 # then modifies filtering rules according A, which will take effect from the
 # moment when the next packet-in event arrived.
 
-import smart_ids
-import web_admin
 from utils import *
 
 from ryu.base import app_manager

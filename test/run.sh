@@ -3,7 +3,7 @@
 if [ $1 = "firewall" ]; then
 	# add path to .pth first
 	cd ..
-	sudo ryu run firewall.py --observe-links --verbose
+	sudo ryu run firewall.py --observe-link
 	cd test
 elif [ $1 = "ids" ]; then
 	sudo python ../ids_runner.py
@@ -12,7 +12,9 @@ elif [ $1 = "mininet" ]; then
 elif [ $1 = "test" ]; then
 	sudo python dispatcher.py
 elif [ $1 = "reset" ]; then
-	sudo cp ../rules/firewall.rule.bak ../rules/firewall.rule
-	sudo rm ../log/alert.pkt
+	cp ../rules/firewall.rule.bak ../rules/firewall.rule
+	rm ../log/alert.pkt
+	echo "time,action,label,s_ip,s_port,d_ip,d_port,payload" > ../log/alert.pkt
+
 fi
 

@@ -1,7 +1,7 @@
 from scapy.all import *
 import socket
 import fcntl
-pcap_file = "./test1.pcap"
+pcap_file = "./pcap/test2-dos.pcap"
 
 def get_ip(iface):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -11,7 +11,7 @@ def get_ip(iface):
 
 def dispatch():
     pkts = rdpcap(pcap_file)
-    n = 10
+    n = min(len(pkts), 8)
     for i in range(n):
         pkt = pkts[i]
         
