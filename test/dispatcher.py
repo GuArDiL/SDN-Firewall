@@ -1,4 +1,5 @@
 from scapy.all import *
+import sys
 import socket
 import fcntl
 pcap_file = "./pcap/test2-dos.pcap"
@@ -37,4 +38,5 @@ def dispatch():
 
 
 if __name__ == '__main__':
+    pcap_file = sys.argv[1]
     dispatch()
