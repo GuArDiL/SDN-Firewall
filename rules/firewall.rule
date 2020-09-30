@@ -1,4 +1,5 @@
-id,s_ip,s_port,d_ip,d_port,action
-10003,10.0.0.2,33654,any,any,drop
-10002,10.0.0.1,any,10.0.0.2,any,accept
-10001,10.0.0.2,any,10.0.0.3,135,redirect
+id,s_ip,s_port,d_ip,d_port,action,timestamp,source
+10014,10.0.0.2,60638,any,any,redirect,09-30 13:40:40,firewall
+10010,10.0.0.2,33654,any,any,redirect,09-30 13:40:17,firewall
+10002,10.0.0.1,any,10.0.0.2,any,accept,09-01 20:00:00,initial
+10001,10.0.0.2,any,10.0.0.3,135,redirect,09-01 20:00:00,initial

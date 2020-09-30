@@ -34,6 +34,7 @@ from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet, ether_types, in_proto
 from ryu.lib.packet import ipv4
 from ryu.lib.packet import tcp, udp, arp, icmp
+from ryu.app.ofctl.api import get_datapath
 
 import csv  # cope with firewall.rule and ids.rule
 
@@ -43,17 +44,18 @@ log_file = "./log/alert.pkt"
 
 class BasicFirewall(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
-    _CONTEXTS = {'alerter' : AlertObserver}
+    _CONTEXTS = {'alerter' : AlertObserver, 'reminder' : RuleReminder}
 
     def __init__(self, *args, **kwargs):
         super(BasicFirewall, self).__init__(*args, **kwargs)
         self.name = "firewall"
-        self.mac_to_port = {}
+        self.ip_to_port = {}
         # self.snort_port = 3
         self.redirect_port = 4      # TODO: consider being configurable!
         self.ids_port = 5
         self.alerter = kwargs['alerter']
         # self.alerter.start()          # start() has been implicitly called here
+        self.reminder = kwargs['reminder']
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -61,17 +63,9 @@ class BasicFirewall(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
-        # install table-miss flow entry
-        #
-        # We specify NO BUFFER to max_len of the output action due to
-        # OVS bug. At this moment, if we specify a lesser number, e.g.,
-        # 128, OVS will send Packet-In with invalid buffer_id and
-        # truncated packet data. In that case, we cannot output packets
-        # correctly.  The bug has been fixed in OVS v2.1.0.
-        match = parser.OFPMatch()
-        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-                                          ofproto.OFPCML_NO_BUFFER)]
-        self.add_flow(datapath, 0, match, actions)
+        # install table-miss flow entry in reset_flow_table()
+        # which would be called by apply_rules_for_all()
+        self.apply_rules_for_all()
 
     def add_flow(self, datapath, priority, match, actions, buffer_id=None):
         ofproto = datapath.ofproto
@@ -81,19 +75,46 @@ class BasicFirewall(app_manager.RyuApp):
             inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
                                                  actions)]
         else:
-            # TODO: may not support "any" if simply clear by match
+            # flow entry for drop action
             inst = [parser.OFPInstructionActions(ofproto.OFPIT_CLEAR_ACTIONS, [])]
         
         kwargs = dict(datapath=datapath, priority=priority, match=match,
-                      instructions=inst, command = ofproto.OFPFC_ADD)
+                      instructions=inst, command=ofproto.OFPFC_ADD)
         if buffer_id:
             kwargs['buffer_id'] = buffer_id
         # exclude table-miss entry
-        if priority > 0:
-            kwargs['idle_timeout'] = 5
+        # if priority > 0:
+        #     kwargs['idle_timeout'] = 5
         
         mod = parser.OFPFlowMod(**kwargs)
         datapath.send_msg(mod)
+
+    def reset_flow_table(self, datapath):
+        # remove all flow entries and install table-miss entry back
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+        
+        # remove all flow entries
+        # uncommented parameters are indispensable to clear
+        kwargs = dict(datapath=datapath,
+                      command=ofproto.OFPFC_DELETE,
+                      # priority=1,
+                      # buffer_id=ofproto.OFP_NO_BUFFER,
+                      out_port=ofproto.OFPP_ANY,
+                      out_group=ofproto.OFPG_ANY,
+                      # flags=ofproto.OFPFF_SEND_FLOW_REM,
+                      # match=parser.OFPMatch(),
+                      # instructions=[]
+                      ) 
+        mod = parser.OFPFlowMod(**kwargs)
+        datapath.send_msg(mod)
+        
+        # install table-miss entry
+        match = parser.OFPMatch()
+        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+                                          ofproto.OFPCML_NO_BUFFER)]
+        self.add_flow(datapath, 0, match, actions)
+
 
     def get_protocols(self, pkt):
         protocols = {}
@@ -123,16 +144,13 @@ class BasicFirewall(app_manager.RyuApp):
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             # ignore lldp packet
             return
-        dst = eth.dst
-        src = eth.src
+        # dst = eth.dst
+        # src = eth.src
         
         dpid = format(datapath.id, "d").zfill(16)
-        self.mac_to_port.setdefault(dpid, {})
+        self.ip_to_port.setdefault(dpid, {})            # ip learning is more efficient
 
         # self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
-
-        # learn a mac address to avoid FLOOD next time.
-        self.mac_to_port[dpid][src] = in_port
 
         # ignoring others except ipv4-tcp packets
         protocols = self.get_protocols(pkt)
@@ -141,88 +159,53 @@ class BasicFirewall(app_manager.RyuApp):
 
         p_ipv4 = protocols['ipv4']
         p_tcp = protocols['tcp']        
+        
+        # learn an ip address (rather than mac) to avoid FLOOD next time
+        # or TODO: consider maintaining an ip-mac-port table to support learn mac from non-ip packet
+        self.ip_to_port[dpid][p_ipv4.src] = in_port
+
+        # log packet-in event
+        FirewallLogger.recordPacketInEvent(p_ipv4.src, p_tcp.src_port, p_ipv4.dst, p_tcp.dst_port)
 
         # start filtering
-        matched = False
         blocked = True
         # typical firewall rules as:
         #   id, s_ip, s_port, d_ip, d_port, action
         #   1, 10.0.0.1, 80, 10.0.0.2, any, accept
         #   2, 10.0.0.2, any, 10.0.0.3, 135, redirect
         with open(firewall_rule_file) as frfile:
-            rules = csv.DictReader(frfile)
+            rules = list(csv.DictReader(frfile))
             for r in rules:
-                rid = r['id']
-                s_ip = r['s_ip']
-                s_port = r['s_port']
-                d_ip = r['d_ip']
-                d_port = r['d_port']
-                act = r['action']
-                self.logger.info("Fetch rule %s: %s:%s --> %s:%s %s",
-                                 rid, s_ip, s_port, d_ip, d_port, act)
+                # get actions for forward and backward rule if matched
+                # no rule will be applied to switches in packet-in event now
+                # thus the priority parameter makes no difference
+                actions1, actions2 = self.apply_rule_for(datapath, r, -1, False)
                 
-                # add flow entry for all rules (even drop)
-                if act:
-                    # forward rule
-                    kwargs1 = dict(eth_type=ether_types.ETH_TYPE_IP,
-                                   ip_proto=in_proto.IPPROTO_TCP)
-                    # backward rule
-                    kwargs2 = dict(eth_type=ether_types.ETH_TYPE_IP,
-                                   ip_proto=in_proto.IPPROTO_TCP)
-
-                    # ignore "any"
-                    if(s_ip != "any"):
-                        kwargs1["ipv4_src"] = kwargs2["ipv4_dst"] = s_ip
-
-                    if(s_port != "any"):
-                        kwargs1["tcp_src"] = kwargs2["tcp_dst"] = int(s_port)
-
-                    if(d_ip != "any"):
-                        kwargs1["ipv4_dst"] = kwargs2["ipv4_src"] = d_ip
-
-                    if(d_port != "any"):
-                        kwargs1["tcp_dst"] = kwargs2["tcp_src"] = int(d_port)
-
-                    match1 = parser.OFPMatch(**kwargs1)
-                    match2 = parser.OFPMatch(**kwargs2)
-
-                    if dst in self.mac_to_port[dpid]:
-                        out_port = self.mac_to_port[dpid][dst]
-                    else:
-                        out_port = ofproto.OFPP_FLOOD
-
-                    if act == "redirect":
-                        out_port = self.redirect_port
-
-                    # mirror all later-matched packets to ids
-                    actions = [parser.OFPActionOutput(out_port),
-                               parser.OFPActionOutput(self.ids_port)]
-                    if act == "drop":
-                        actions = []        # TODO: consider forwarding to ids only
-                    
-                    # priority = ["accept", "redirect", "drop"].index(act) + 1
-                    priority = 1
-                    self.add_flow(datapath, priority, match1, actions)
-                    self.add_flow(datapath, priority, match2, actions)
-
                 # check if current packet matches
-                if not matched:
-                    if s_ip != "any" and s_ip != p_ipv4.src:
-                        continue
-                    if s_port != "any" and int(s_port) != p_tcp.src_port:
-                        continue
-                    # match only once, i.e., match the highest one
-                    matched = True
-                    if act != "drop":
-                        blocked = False
-                        actions_saved = [parser.OFPActionOutput(out_port),
-                                         parser.OFPActionOutput(self.ids_port)]
+                # match only once, i.e., match the highest one
+                # forward rule matched
+                if r['s_ip'] == "any" or r['s_ip'] == p_ipv4.src:
+                    if r['s_port'] == "any" or r['s_port'] == p_tcp.src_port:
+                        if r['action'] != "drop":
+                            blocked = False
+                            actions = actions1
+                        matched = True
+                        FirewallLogger.recordRuleEvent("match", r)
+                        break
+                # backward fule matched
+                if r['d_ip'] == "any" or r['d_ip'] == p_ipv4.src:
+                    if r['d_port'] == "any" or r['d_port'] == p_tcp.src_port:
+                        if r['action'] != "drop":
+                            blocked = False
+                            actions_saved = [parser.OFPActionOutput(out_port2)]
+                        matched = True
+                        FirewallLogger.recordRuleEvent("match", r)
+                        break
 
         # here all rules have applied as flow entry on switch
 
         if not blocked:
-            # forward current packet, actions have been determined
-            actions = actions_saved
+            # forward current packet, actions have been determined if not blocked
             data = None
             if msg.buffer_id == ofproto.OFP_NO_BUFFER:
                 data = msg.data
@@ -242,26 +225,19 @@ class BasicFirewall(app_manager.RyuApp):
         # typical lines as:
         #   DOS, drop
         #   R2L, redirect
-        action = None
-        with open(ids_rule_file) as irf:
-            rules = csv.DictReader(irf)
-            for r in rules:
-                if r['label'] == msg.label:
-                    action = r['action']
-                    break
+        action = getActionForLabel(msg.label)
         
-        # TODO: consider clearing related or all flow entries immediately
-        # The sooner the next packet-in arrives, the earlier the new rule
-        # takes effect. For the present, idle_timeout holds the interval.
+        # DONE: consider clearing related or all flow entries immediately
 
+        FirewallLogger.recordAlertEvent(msg)
+        
         if action == "alert":
             self._handle_alert(msg)
         elif action == "drop":
             self._handle_drop(msg)
         elif action == "redirect":
             self._handle_redirect(msg)
-
-        PacketLogger.record(action, msg)
+        
 
     def _handle_alert(self, msg):
         self.logger.info("[alert][%s] %s:%d --> %s:%d, data = {", msg.label,
@@ -278,6 +254,7 @@ class BasicFirewall(app_manager.RyuApp):
                       s_ip = msg.s_ip, s_port = msg.s_port,
                       d_ip = "any", d_port = "any", action = "drop")
         RuleWriter.insert_ahead(**kwargs)
+        self.apply_rules_for_all()
 
     def _handle_redirect(self, msg):
         self.logger.info("[redirect][%s] %s:%d --> %s:%d", msg.label,
@@ -288,7 +265,87 @@ class BasicFirewall(app_manager.RyuApp):
                       s_ip = msg.s_ip, s_port = msg.s_port,
                       d_ip = "any", d_port = "any", action = "redirect")
         RuleWriter.insert_ahead(**kwargs)
+        self.apply_rules_for_all()
 
-
-
+    @set_ev_cls(EventRuleModified, MAIN_DISPATCHER)
+    def handle_rule_alert(self, ev):
+        self.apply_rules_for_all()
+        FirewallLogger.recordAdminSubmit() 
+    
+    def apply_rules_for_all(self):
+        datapaths = get_datapath(self)
+        for datapath in datapaths:
+            self.reset_flow_table(datapath)     # install table-miss entry here
+            with open(firewall_rule_file) as frfile:
+                rules = list(csv.DictReader(frfile))
+                print("apply rules:", rules)
+                priority = len(rules)
+                for r in rules:
+                    self.apply_rule_for(datapath, r, priority)
+                    priority -= 1
+           
+    def apply_rule_for(self, datapath, rule, priority, applied=True):
+        dpid = format(datapath.id, "d").zfill(16)
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
         
+        rid = rule['id']
+        s_ip = rule['s_ip']
+        s_port = rule['s_port']
+        d_ip = rule['d_ip']
+        d_port = rule['d_port']
+        act = rule['action']
+        self.logger.info("Fetch rule %s: %s:%s --> %s:%s %s",
+                         rid, s_ip, s_port, d_ip, d_port, act)
+        
+        # add flow entry for all rules (even drop)
+        if act:
+            # forward rule
+            kwargs1 = dict(eth_type=ether_types.ETH_TYPE_IP,
+                           ip_proto=in_proto.IPPROTO_TCP)
+            # backward rule
+            kwargs2 = dict(eth_type=ether_types.ETH_TYPE_IP,
+                           ip_proto=in_proto.IPPROTO_TCP)
+
+            # ignore "any"
+            if(s_ip != "any"):
+                kwargs1["ipv4_src"] = kwargs2["ipv4_dst"] = s_ip
+
+            if(s_port != "any"):
+                kwargs1["tcp_src"] = kwargs2["tcp_dst"] = int(s_port)
+
+            if(d_ip != "any"):
+                kwargs1["ipv4_dst"] = kwargs2["ipv4_src"] = d_ip
+
+            if(d_port != "any"):
+                kwargs1["tcp_dst"] = kwargs2["tcp_src"] = int(d_port)
+
+            match1 = parser.OFPMatch(**kwargs1)
+            match2 = parser.OFPMatch(**kwargs2)
+             
+            # find learned ip respectively
+            out_port1 = out_port2 = ofproto.OFPP_FLOOD
+            if dpid in self.ip_to_port:
+                if d_ip in self.ip_to_port[dpid]:
+                    out_port1 = self.ip_to_port[dpid][d_ip]
+                if s_ip in self.ip_to_port[dpid]:
+                    out_port2 = self.ip_to_port[dpid][s_ip]
+
+            if act == "redirect":
+                out_port1 = out_port2 = self.redirect_port
+
+            # mirror all later-matched packets to ids
+            actions1 = [parser.OFPActionOutput(out_port1)]
+            if out_port1 != ofproto.OFPP_FLOOD:
+                actions1.append(parser.OFPActionOutput(self.ids_port))
+            actions2 = [parser.OFPActionOutput(out_port2)]
+            if out_port2 != ofproto.OFPP_FLOOD:
+                actions2.append(parser.OFPActionOutput(self.ids_port))
+            if act == "drop":
+                actions1 = actions2 = []        # TODO: consider forwarding to ids only
+            
+            if applied:
+                self.add_flow(datapath, priority, match1, actions1)
+                self.add_flow(datapath, priority, match2, actions2)
+
+        return actions1, actions2

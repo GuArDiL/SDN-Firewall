@@ -1,0 +1,6 @@
+event,timestamp
+edit ids rule|Fuzzers|redirect,09-30 05:40:01
+edit ids rule|DoS|redirect,09-30 05:40:01
+edit ids rule|Generic|redirect,09-30 05:40:01
+edit rule|10007|20001|10.0.0.2|33654|0.0.0.0|any|redirect,09-30 05:40:13
+edit rule|10008|20002|10.0.0.2|60638|0.0.0.0|any|redirect,09-30 05:40:13

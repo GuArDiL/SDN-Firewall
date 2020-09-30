@@ -1,0 +1,54 @@
+event,s_ip,s_port,d_ip,d_port,action,timestamp
+alert|Shellcode,10.0.0.2,33654,10.0.0.1,80,,09-30 13:39:16
+new rule|10003|auto,10.0.0.2,33654,any,any,redirect,09-30 13:39:16
+alert|Exploits,10.0.0.2,33654,10.0.0.1,80,,09-30 13:39:16
+new rule|10004|auto,10.0.0.2,33654,any,any,redirect,09-30 13:39:16
+remove rule|10003|auto,10.0.0.2,33654,any,any,redirect,09-30 13:39:16
+alert|Shellcode,10.0.0.2,33654,10.0.0.1,80,,09-30 13:39:16
+new rule|10005|auto,10.0.0.2,33654,any,any,redirect,09-30 13:39:16
+remove rule|10004|auto,10.0.0.2,33654,any,any,redirect,09-30 13:39:16
+alert|Exploits,10.0.0.2,33654,10.0.0.1,80,,09-30 13:39:16
+new rule|10006|auto,10.0.0.2,33654,any,any,redirect,09-30 13:39:16
+remove rule|10005|auto,10.0.0.2,33654,any,any,redirect,09-30 13:39:16
+alert|DoS,10.0.0.2,33654,10.0.0.1,80,,09-30 13:39:16
+new rule|10007|auto,10.0.0.2,33654,any,any,drop,09-30 13:39:16
+remove rule|10006|auto,10.0.0.2,33654,any,any,redirect,09-30 13:39:16
+alert|Generic,10.0.0.2,60638,10.0.0.1,80,,09-30 13:39:42
+new rule|10008|auto,10.0.0.2,60638,any,any,drop,09-30 13:39:42
+admin submit,,,,,,09-30 13:40:13
+alert|Exploits,10.0.0.2,33654,10.0.0.1,80,,09-30 13:40:17
+new rule|10003|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+remove rule|20001|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+alert|Exploits,10.0.0.2,33654,10.0.0.1,80,,09-30 13:40:17
+new rule|10004|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+remove rule|10003|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+alert|Shellcode,10.0.0.2,33654,10.0.0.1,80,,09-30 13:40:17
+new rule|10005|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+remove rule|10004|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+alert|Shellcode,10.0.0.2,33654,10.0.0.1,80,,09-30 13:40:17
+new rule|10006|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+remove rule|10005|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+alert|DoS,10.0.0.2,33654,10.0.0.1,80,,09-30 13:40:17
+new rule|10007|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+remove rule|10006|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+alert|Exploits,10.0.0.2,33654,10.0.0.1,80,,09-30 13:40:17
+new rule|10008|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+remove rule|10007|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+alert|DoS,10.0.0.2,33654,10.0.0.1,80,,09-30 13:40:17
+new rule|10009|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+remove rule|10008|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+alert|Generic,10.0.0.2,33654,10.0.0.1,80,,09-30 13:40:17
+new rule|10010|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+remove rule|10009|auto,10.0.0.2,33654,any,any,redirect,09-30 13:40:17
+alert|Fuzzers,10.0.0.2,60638,10.0.0.1,80,,09-30 13:40:40
+new rule|10011|auto,10.0.0.2,60638,any,any,redirect,09-30 13:40:40
+remove rule|20002|auto,10.0.0.2,60638,any,any,redirect,09-30 13:40:40
+alert|Generic,10.0.0.2,60638,10.0.0.1,80,,09-30 13:40:40
+new rule|10012|auto,10.0.0.2,60638,any,any,redirect,09-30 13:40:40
+remove rule|10011|auto,10.0.0.2,60638,any,any,redirect,09-30 13:40:40
+alert|Fuzzers,10.0.0.2,60638,10.0.0.1,80,,09-30 13:40:40
+new rule|10013|auto,10.0.0.2,60638,any,any,redirect,09-30 13:40:40
+remove rule|10012|auto,10.0.0.2,60638,any,any,redirect,09-30 13:40:40
+alert|DoS,10.0.0.2,60638,10.0.0.1,80,,09-30 13:40:40
+new rule|10014|auto,10.0.0.2,60638,any,any,redirect,09-30 13:40:40
+remove rule|10013|auto,10.0.0.2,60638,any,any,redirect,09-30 13:40:40

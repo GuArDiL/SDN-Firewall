@@ -1,8 +1,8 @@
 label,action
-Fuzzers,redirect
-DoS,redirect
+Normal,NOACTION
+Fuzzers,drop
+DoS,drop
 Exploits,redirect
-Generic,redirect
+Generic,drop
 Reconnaissance,redirect
 Shellcode,redirect
-Normal,NOACTION
