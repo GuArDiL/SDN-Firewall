@@ -264,6 +264,6 @@ def getActionForLabel(label):
     return "NOACTION"
 
 
-import time
+import datetime
 def timestamp():
-    return time.strftime("%m-%d %H:%M:%S", time.localtime())
+    return (datetime.datetime.utcnow() + datetime.timedelta(hours=8)).strftime("%m-%d %H:%M:%S")    

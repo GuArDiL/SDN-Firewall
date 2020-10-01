@@ -6,7 +6,7 @@ SDN_FIREWALL_ROOT=$(dirname $(readlink -f "$0"))"/../"
 FILE_IDS_RUNNER=$SDN_FIREWALL_ROOT"ids_runner.py"
 FILE_DISPATCHER=$SDN_FIREWALL_ROOT"test/dispatcher.py"
 FILE_TEST1_PCAP=$SDN_FIREWALL_ROOT"test/pcap/test1.pcap"
-FILE_TEST2_PCAP=$SDN_FIREWALL_ROOT"test/pcap/test2-dos.pcap"
+FILE_TEST2_PCAP=$SDN_FIREWALL_ROOT"test/pcap/test2-dos2.pcap"
 
 FILE_PACKET_LOG=$SDN_FIREWALL_ROOT"log/pkt.all"
 FILE_FIREWALL_LOG=$SDN_FIREWALL_ROOT"log/firewall.log"
@@ -29,6 +29,10 @@ elif [ $1 = "ids" ]; then
 	sudo python $FILE_IDS_RUNNER
 elif [ $1 = "mininet" ]; then
 	sudo mn --controller=remote,ip=127.0.0.1 --mac --switch ovs,protols=OpenFlow13 --topo single,5 --ipbase=10.0.0.1/24
+elif [ $1 = "admin" ]; then
+	cd ../../web_admin
+	sudo python manage.py runserver 0.0.0.0:8192 --noreload
+	cd $SDN_FIREWALL_ROOT"test/"
 elif [ $1 = "test1" ]; then
 	sudo python $FILE_DISPATCHER $FILE_TEST1_PCAP
 elif [ $1 = "test2" ]; then

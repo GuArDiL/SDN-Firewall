@@ -39,8 +39,8 @@ def analyze_packet(pkt):
     except:
         pass
 
-#    label = IDS_Engine.IDS(pkt, pkt.time)   # call IDS
-    label = fake_ids(pkt)
+    label = IDS_Engine.IDS(pkt, pkt.time)   # call IDS
+    # label = fake_ids(pkt)
     
     action = getActionForLabel(label)
     PacketLogger.record(action, label, s_ip, s_port, d_ip, d_port, str(data))

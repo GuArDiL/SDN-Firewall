@@ -197,7 +197,7 @@ class BasicFirewall(app_manager.RyuApp):
                     if r['d_port'] == "any" or r['d_port'] == p_tcp.src_port:
                         if r['action'] != "drop":
                             blocked = False
-                            actions_saved = [parser.OFPActionOutput(out_port2)]
+                            actions_saved = actions2
                         matched = True
                         FirewallLogger.recordRuleEvent("match", r)
                         break
@@ -278,7 +278,6 @@ class BasicFirewall(app_manager.RyuApp):
             self.reset_flow_table(datapath)     # install table-miss entry here
             with open(firewall_rule_file) as frfile:
                 rules = list(csv.DictReader(frfile))
-                print("apply rules:", rules)
                 priority = len(rules)
                 for r in rules:
                     self.apply_rule_for(datapath, r, priority)
