@@ -1,1 +1,5 @@
 event,timestamp,reporter
+alert|10.0.0.2:33654|DoS,10-13 20:55:49,ids
+new rule|10003|drop|10.0.0.2:33654|any:any,10-13 20:55:49,firewall
+alert|10.0.0.2:33654|DoS,10-13 20:55:49,ids
+new rule|10004|drop|10.0.0.2:33654|any:any,10-13 20:55:49,firewall

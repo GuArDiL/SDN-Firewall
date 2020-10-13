@@ -197,7 +197,7 @@ class BasicFirewall(app_manager.RyuApp):
                     if r['d_port'] == "any" or r['d_port'] == p_tcp.src_port:
                         if r['action'] != "drop":
                             blocked = False
-                            actions_saved = actions2
+                            actions = actions2
                         matched = True
                         FirewallLogger.recordRuleEvent("match", r)
                         break

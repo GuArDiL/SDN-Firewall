@@ -12,7 +12,9 @@ def get_ip(iface):
 
 def dispatch():
     pkts = rdpcap(pcap_file)
-    n = min(len(pkts), 8)
+    n = len(pkts)
+    print("#### pcap file contains", n, "packets.")
+    #n = min(len(pkts), 10)
     for i in range(n):
         pkt = pkts[i]
         

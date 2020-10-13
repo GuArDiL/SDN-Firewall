@@ -16,7 +16,7 @@ def fake_ids(pkt):
     data = "FAKE"
     # pkt can be used as dictionary-like stuff already
     # print(time, data, pkt)
-    return random.choice(['Normal', 'Fuzzers', 'DoS', 'Exploits', 'Generic', 'Reconnaissance', 'Shellcode'])
+    return random.choice(['Normal', 'DoS', 'Generic'])
 
 def send_alert(alert):
     print("send alert:", alert)

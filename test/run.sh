@@ -6,7 +6,7 @@ SDN_FIREWALL_ROOT=$(dirname $(readlink -f "$0"))"/../"
 FILE_IDS_RUNNER=$SDN_FIREWALL_ROOT"ids_runner.py"
 FILE_DISPATCHER=$SDN_FIREWALL_ROOT"test/dispatcher.py"
 FILE_TEST1_PCAP=$SDN_FIREWALL_ROOT"test/pcap/test1.pcap"
-FILE_TEST2_PCAP=$SDN_FIREWALL_ROOT"test/pcap/test2-dos2.pcap"
+FILE_TEST2_PCAP=$SDN_FIREWALL_ROOT"test/pcap/test2-dos.pcap"
 
 FILE_PACKET_LOG=$SDN_FIREWALL_ROOT"log/pkt.all"
 FILE_FIREWALL_LOG=$SDN_FIREWALL_ROOT"log/firewall.log"
