@@ -1,6 +1,3 @@
 event,s_ip,s_port,d_ip,d_port,action,timestamp
-alert|DoS,10.0.0.2,33654,10.0.0.1,80,,10-13 20:55:49
-new rule|10003|auto,10.0.0.2,33654,any,any,drop,10-13 20:55:49
-alert|DoS,10.0.0.2,33654,10.0.0.1,80,,10-13 20:55:49
-new rule|10004|auto,10.0.0.2,33654,any,any,drop,10-13 20:55:49
-remove rule|10003|auto,10.0.0.2,33654,any,any,drop,10-13 20:55:49
+alert|Generic,10.0.0.1,80,10.0.0.2,60638,,10-20 20:16:30
+new rule|10003|auto,10.0.0.1,80,any,any,drop,10-20 20:16:30

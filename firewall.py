@@ -1,27 +1,38 @@
 # SDN firewall as core
 
-# One step toward self-adaptive firewalls, capable of automatically
-# setting the filtering rules.
+# One step toward self-adaptive firewall, capable of automatically
+# setting the filtering rules as a response to threats detected.
+# 
 # It (individually) acts like a stateless packet filtering, working with
 # statically configured rules. Equipped with a powerful IDS or other traffic
 # analyzer, it can be upgraded to a stateful packet filtering with capability
 # of inspection and control, pretty close to an IPS.
+#
 # In this project, it integrates a smart traffic analyzer, then turns its flow
-# to a loop as below:
-#   1. As an app of controller, recevie packet P through SBI.
-#   2. Send an instruction to switch for each filtering rules.
-#       - accept/redirect. Update or make an new flow entry, in which the
-#         out port is specified as usual or by configuration. Always add an
-#         extra out port to analyzer.
-#       - drop. Clear related entry.
-#   3. Decide the out port for P according filtering rules, with an extra
-#      one enabling switch to mirror itself to analyzer as well.
-#   4. Send the constructed output packet to switch through SBI.
-# Meanwhile, it rectifies filtering rules whenever altered by analyzer. It
-# receives from analyzer a label L for a certain packet as a deferred response,
-# decides an action A(alert/drop/redirect) according L and pre-configuration,
-# then modifies filtering rules according A, which will take effect from the
-# moment when the next packet-in event arrived.
+# to three loops as below:
+# Packet Forwarding Loop: Instruct switch to mirror all packets.
+#   1. As an app of controller, recevie packet P that failed to match through SBI.
+#   2. Match the highest rule R for P in filtering rules.
+#   3. Do nothing if matched no rule.
+#   4. Decide the out port for P according to R's action and ip-port table.
+#       - accept. Let out port be the specific port or FLOOD, depending on
+#         whether P's destination exists in ip-port table.
+#       - redirect. Let out port be the redirect port.
+#       - drop. Do nothing.
+#   5. Append IDS port if not FLOOD, instructing switch to mirror P to analyzer.
+#   6. Send the constructed output packet to switch through SBI.
+# Alerting Loop: Rectify filtering rules whenever altered by analyzer.
+#   1. Receive from analyzer a label L for a certain packet as a deferred response.
+#   2. Decide an action A according to L and IDS rule(a lable-action table).
+#   3. Modify filtering rules according to A. That is, insert the new rule ahead of
+#      existing rules and remove all conflicting (also unnecessary) old rules.
+#   4. APPLY ALL filtering rules to switch. That is, clear all flow entries and add
+#      table-miss entry back, then send an instruction to switch for each rule.
+#       - accept/redirect. The out port is specified as in Packet Forwarding Loop.
+#       - drop. Add an entry with CLEAR_ACTION.
+# Admin Loop: APPLY ALL filtering rules once notified by web admin. The correctness
+# of these rules is ensured by user who submitted the modification. The APPLY ALL
+# operation is exactly the same as in Alerting Loop.
 
 from utils import *
 
@@ -201,8 +212,6 @@ class BasicFirewall(app_manager.RyuApp):
                         matched = True
                         FirewallLogger.recordRuleEvent("match", r)
                         break
-
-        # here all rules have applied as flow entry on switch
 
         if not blocked:
             # forward current packet, actions have been determined if not blocked

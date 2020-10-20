@@ -19,12 +19,15 @@ def dispatch():
         pkt = pkts[i]
         
         if pkt[TCP].dport != 80:
-            continue
-         
-        src = "00:00:00:00:00:02"
-        dst = "00:00:00:00:00:01"
-        s_ip = "10.0.0.2"
-        d_ip = "10.0.0.1"
+            src = "00:00:00:00:00:01"
+            dst = "00:00:00:00:00:02"
+            s_ip = "10.0.0.1"
+            d_ip = "10.0.0.2"
+        else: 
+            src = "00:00:00:00:00:02"
+            dst = "00:00:00:00:00:01"
+            s_ip = "10.0.0.2"
+            d_ip = "10.0.0.1"
         
         pkt[Ether].src = src
         pkt[Ether].dst = dst
