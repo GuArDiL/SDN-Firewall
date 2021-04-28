@@ -1,38 +1,38 @@
-# SDN firewall as core
-
-# One step toward self-adaptive firewall, capable of automatically
-# setting the filtering rules as a response to threats detected.
+# A self-adaptive SDN firewall, automatically setting the filtering rules
+# as a response to threats detected.
 # 
 # It (individually) acts like a stateless packet filtering, working with
-# statically configured rules. Equipped with a powerful IDS or other traffic
-# analyzer, it can be upgraded to a stateful packet filtering with capability
-# of inspection and control, pretty close to an IPS.
+# statically configured rules. Equipped with a powerful IDS or other external
+# traffic analyzers, it can be stateful, more like an IPS.
 #
-# In this project, it integrates a smart traffic analyzer, then turns its flow
-# to three loops as below:
-# Packet Forwarding Loop: Instruct switch to mirror all packets.
-#   1. As an app of controller, recevie packet P that failed to match through SBI.
-#   2. Match the highest rule R for P in filtering rules.
-#   3. Do nothing if matched no rule.
-#   4. Decide the out port for P according to R's action and ip-port table.
-#       - accept. Let out port be the specific port or FLOOD, depending on
-#         whether P's destination exists in ip-port table.
-#       - redirect. Let out port be the redirect port.
+# In this project, it integrates a smart traffic analyzer. Its workflow are three
+# loops as below:
+#
+# Packet Forwarding Loop: Instruct the switch to mirror all packets.
+#   1. Packet In.
+#   2. Find for P the highest matched filtering rule R.
+#   3. Do nothing if no rule matches.
+#   4. Decide the output port for P based on R's action.
+#       - accept. Output as usual. That is, output to the port learned before or FLOOD
+#         if the destination has not been learned.
+#       - redirect. Output to the pre-configured redirect port.
 #       - drop. Do nothing.
-#   5. Append IDS port if not FLOOD, instructing switch to mirror P to analyzer.
-#   6. Send the constructed output packet to switch through SBI.
-# Alerting Loop: Rectify filtering rules whenever altered by analyzer.
-#   1. Receive from analyzer a label L for a certain packet as a deferred response.
-#   2. Decide an action A according to L and IDS rule(a lable-action table).
-#   3. Modify filtering rules according to A. That is, insert the new rule ahead of
-#      existing rules and remove all conflicting (also unnecessary) old rules.
-#   4. APPLY ALL filtering rules to switch. That is, clear all flow entries and add
-#      table-miss entry back, then send an instruction to switch for each rule.
-#       - accept/redirect. The out port is specified as in Packet Forwarding Loop.
-#       - drop. Add an entry with CLEAR_ACTION.
-# Admin Loop: APPLY ALL filtering rules once notified by web admin. The correctness
-# of these rules is ensured by user who submitted the modification. The APPLY ALL
-# operation is exactly the same as in Alerting Loop.
+#   5. Add the pre-configured IDS port to the output port list if not FLOOD.
+#   6. Packet Out.
+#
+# Alerting Loop: Update filtering rules whenever altered by the analyzer.
+#   1. Receive from the analyzer a label L for a certain packet as a deferred response.
+#   2. Decide an action A based on L and IDS rules (a lable-action table).
+#   3. Modify filtering rules based on A. That is, insert the new rule ahead of
+#      existing rules and remove all conflicting old rules.
+#   4. APPLY ALL filtering rules to all switches. That is, clear all flow entries, add
+#      the table-miss entry back, and install a flow entry for each filtering rule.
+#       - accept/redirect. Output as in Packet Forwarding Loop.
+#       - drop. Drop explicitly (i.e. add a flow entry with CLEAR_ACTION).
+#
+# Admin Loop: APPLY ALL filtering rules once rules are committed from web admin.
+#   - The correctness is ensured by the user who submitted the modification.
+#   - The APPLY ALL operation is exactly the same as in Alerting Loop.
 
 from utils import *
 
@@ -125,7 +125,6 @@ class BasicFirewall(app_manager.RyuApp):
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
         self.add_flow(datapath, 0, match, actions)
-
 
     def get_protocols(self, pkt):
         protocols = {}
@@ -247,7 +246,6 @@ class BasicFirewall(app_manager.RyuApp):
         elif action == "redirect":
             self._handle_redirect(msg)
         
-
     def _handle_alert(self, msg):
         self.logger.info("[alert][%s] %s:%d --> %s:%d, data = {", msg.label,
                          msg.s_ip, msg.s_port, msg.d_ip, msg.d_port)
