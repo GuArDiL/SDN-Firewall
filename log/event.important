@@ -1,3 +1,1 @@
 event,timestamp,reporter
-alert|10.0.0.1:80|Generic,10-20 20:16:30,ids
-new rule|10003|drop|10.0.0.1:80|any:any,10-20 20:16:30,firewall

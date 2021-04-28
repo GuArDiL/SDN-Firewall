@@ -1,32 +1,32 @@
-### Setup Environment
-#### 1. Install mininet
+### Setup
+#### mininet
 ```
 git clone https://github.com/mininet/mininet
 cd mininet
-sudo ./util/install.sh -s /path/you/want -n3v
+sudo ./util/install.sh -n3v
 ```
-#### 2. Install ryu
+#### ryu
 ```
 sudo pip install ryu
 ```
-#### 3. Install torch
+#### torch
 ```
 sudo pip install torch
 ```
-#### 4. Install scapy and dpkt
+#### scapy and dpkt
 ```
 sudo pip install scapy
 sudo pip install dpkt
 ```
-#### 5. Install django
+#### django
 ```
 sudo pip install django
 ```
-#### 6. Other dependencies
+#### others
 ```
 sudo apt install net-tools              # for ifconfig
 ```
-### Install SDN-Firewall
+### Install
 ```
 git clone --recursive https://github.com/GuArDiL/SDN-Firewall.git
 git clone https://github.com/GuArDiL/web_admin.git
